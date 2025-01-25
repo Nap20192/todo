@@ -1,0 +1,75 @@
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+    }
+    .box {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        width: 300px;
+        text-align: center;
+    }
+    .box h2 {
+        margin-bottom: 20px;
+    }
+    .box .item {
+        margin-bottom: 15px;
+    }
+    .box input[type="text"],
+    .box input[type="password"] {
+        width: 100%;
+        padding: 10px;
+        margin: 5px 0;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+    .box button {
+        width: 100%;
+        padding: 10px;
+        background-color: #5cb85c;
+        border: none;
+        border-radius: 5px;
+        color: white;
+        font-size: 16px;
+        cursor: pointer;
+    }
+    .box button:hover {
+        background-color: #4cae4c;
+    }
+</style>
+<div>
+    <div class="box">
+        <h2>Login</h2>
+        <form action="/login" method="post">
+            <div class="item">
+                <input type="text" name="username" placeholder="Username" required>
+            </div>
+            <div class="item">
+                <input type="password" name="password" placeholder="Password" required>
+            </div>
+            <button type="submit" style="cursor: pointer;">Login</button>
+        </form>
+    
+        <h2>Register</h2>
+        <form action="/register" method="post">
+            <div class="item">
+                <input type="text" name="username" placeholder="Username" required>
+            </div>
+            <div class="item">
+                <input type="password" name="password" placeholder="Password" required>
+            </div>
+            <button type="submit" style="cursor: pointer;">Register</button>
+        </form>
+    </div>
+</div>
+
+<%- include("footer") -%>
