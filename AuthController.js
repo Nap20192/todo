@@ -4,7 +4,6 @@ const { User } = require('./models');
 
 const generateAccessToken = (id, username) => {
     const payload = { id, username };
-    console.log(payload);
     return jwt.sign(payload, "1234567", { expiresIn: "24h" });
 }
 
