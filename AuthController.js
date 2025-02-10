@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt'); 
 const jwt = require('jsonwebtoken');
-const { User } = require('./User');
+const { User } = require('./models');
 
 const generateAccessToken = (id, username) => {
     const payload = { id, username };
