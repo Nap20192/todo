@@ -8,7 +8,11 @@ const Item = model('Item', itemsSchema);
 
 const listSchema = new Schema({
     name: String,
-    items: [itemsSchema]
+    items: [itemsSchema],
+    userID: {
+        type: String,
+        required: true
+    }
 });
 
 const List = model('List', listSchema);
@@ -21,8 +25,7 @@ const userSchema = new Schema({
     password: {
         type: String,
         required: true
-    },
-    list: [itemsSchema]
+    }
 });
 
 const User = model('User', userSchema);

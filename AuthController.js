@@ -1,17 +1,11 @@
-const bcrypt = require('bcrypt');
-const User = require('./User').User;
-const session =  require('express-session')
+const bcrypt = require('bcrypt'); 
 const jwt = require('jsonwebtoken');
-
-
+const { User } = require('./User');
 
 const generateAccessToken = (id, username) => {
-    const payload = {
-        id,
-        username 
-    }
+    const payload = { id, username };
     console.log(payload);
-    return jwt.sign(payload, "1234567", {expiresIn: "24h"});
+    return jwt.sign(payload, "1234567", { expiresIn: "24h" });
 }
 
 class AuthController {
@@ -20,23 +14,23 @@ class AuthController {
             const { username, password } = req.body;
             console.log(`Login attempt: ${username}`);
             const candidate = await User.findOne({ username });
+            const failure = true;
+            let errorMsg;
             if (!candidate) {
                 console.error(`User not found: ${username}`);
-                return res.status(400).json({ message: "User not found" });
+                errorMsg = 'User not found. Try signing up.';
+                return res.render('login', { failure, errorMsg });
             }
             const valid = bcrypt.compareSync(password, candidate.password);
             if (!valid) {
                 console.error(`Invalid password for user: ${username}`);
-                return res.status(400).json({ message: "Invalid password" });
+                errorMsg = 'Invalid password.';
+                return res.render('login', { failure, errorMsg });
             }
             const token = generateAccessToken(candidate._id, candidate.username);
-            res.header('Authorization', `Bearer ${token}`);
-
-            const idString = candidate._id.toString(); 
-            req.session.userId = idString; 
-            req.session.username = candidate.username; 
-            console.log(candidate.username)
-            return res.redirect(`/?id=${idString}`);
+            console.log(candidate.username);
+            res.cookie('Access', token, { maxAge: 24 * 60 * 60 * 1000, httpOnly: true });
+            res.redirect('/');
         } catch (err) {
             console.error('Error during login:', err);
             res.status(500).json({ message: "Internal server error" });
@@ -48,17 +42,19 @@ class AuthController {
             const { username, password } = req.body;
             console.log(`Register attempt: ${username}`);
             const candidate = await User.findOne({ username });
+            const failure = true;
+            let errorMsg;
             if (candidate) {
                 console.error(`User already exists: ${username}`);
-                return res.status(400).json({ message: "User already exists" });
+                errorMsg = 'User already exists.';
+                return res.render('signup', { failure, errorMsg });
             }
             const hashPassword = bcrypt.hashSync(password, 7);
-            const newUser = new User({ username, password: hashPassword });
-            await newUser.save();
-            const token = generateAccessToken(newUser._id, newUser.username);
-            res.cookie('token', token, { httpOnly: true, secure: false, sameSite: 'Strict' });
-            res.header('Authorization', `Bearer ${token}`);
-            return res.redirect('/');
+            const user = new User({ username, password: hashPassword, role: "ordinary mortal" });
+            await user.save();
+            const token = generateAccessToken(user._id, user.username);
+            res.cookie('Access', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
+            return res.status(201)
         } catch (err) {
             console.error('Error during registration:', err);
             res.status(500).json({ message: "Internal server error" });
@@ -72,6 +68,17 @@ class AuthController {
         } catch (err) {
             console.error('Error fetching users:', err);
             res.status(500).json({ message: "Internal server error" });
+        }
+    }
+
+    async logout(req, res, next) {
+        try {
+            res.clearCookie('Access');
+            console.log("Logout successful");
+            return res.redirect('/login');
+        } catch (e) {
+            console.log(e);
+            next(e);
         }
     }
 }

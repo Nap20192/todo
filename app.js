@@ -3,7 +3,7 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
 const { default: mongoose } = require('mongoose');
-const { Item, List, User } = require('./User.js');
+const { Item, List } = require('./User.js');
 const _ = require('lodash');
 const authMiddleware = require('./AuthMiddleware.js');
 const controller = require('./AuthController.js');
@@ -23,7 +23,7 @@ app.use(session({
 
 const startDBConnection = async () => {
     try {
-        await mongoose.connect('mongodb+srv://kogay20192:OyyMFJDqCPTwyYAZ@users.mqvfn.mongodb.net/?retryWrites=true&w=majority&appName=users', {
+        await mongoose.connect('mongodb+srv://kogay20192:B5jbj5XAFzeL1vIC@back.mqvfn.mongodb.net/todo?retryWrites=true&w=majority&appName=back', {
             useNewUrlParser: true,
             useUnifiedTopology: true,
         });
@@ -35,27 +35,17 @@ const startDBConnection = async () => {
 };
 
 startDBConnection();
+
 app.get('/auth', (req, res) => {
     res.render('validation');
 });
 
-
 app.post('/login', controller.login);
 app.post('/register', controller.register);
 
-const sessionAuthMiddleware = (req, res, next) => {
-    if (!req.session.user) {
-        console.error('User not authenticated');
-        return res.redirect('/auth');
-    }
-    req.user = req.session.user;
-    next();
-};
-
-
 app.get('/user', controller.getUser);
 
-app.use(sessionAuthMiddleware)
+app.use(authMiddleware);
 
 const item1 = new Item({ name: "Welcome" });
 const item2 = new Item({ name: "Create" });
@@ -63,26 +53,20 @@ const item3 = new Item({ name: "Read" });
 
 const defaultItems = [item1, item2, item3];
 
-
-
-
 app.get("/", async function (req, res) {
     try {
-        const userId = req.user._id;
-        const user = await User.findById(userId).populate('list.items').exec();
-
-        if (!user) {
-            console.error('User not found');
-            return res.redirect('/auth');
-        }
-
-        if (!user.list || user.list.length === 0) {
-            user.list = defaultItems;
-            await user.save();
-            console.log("successfully added default items to user list");
+        const userID = req.user.id;
+        const foundItems = await List.find({userID: userID});
+        if (foundItems.length === 0) {
+            const list = new List({
+                name: "Today",
+                items: defaultItems,
+                userID: userID
+            });
+            await list.save();
             res.redirect("/");
         } else {
-            res.render("list", { listTitle: "Today", newListItems: user.list });
+            res.render("list", { listTitle: "Today", newListItems: foundItems[0].items });
         }
     } catch (err) {
         console.log(err);
@@ -91,23 +75,23 @@ app.get("/", async function (req, res) {
 
 app.post("/", async function (req, res) {
     try {
-        const userId = req.user._id;
         const itemName = req.body.newItem;
         const listName = req.body.list;
-
-        const item = new Item({ name: itemName });
-
-        if (listName === "Today") {
-            const user = await User.findById(userId);
-            if (!user) {
-                console.error('User not found');
-                return res.redirect('/auth');
-            }
-            user.list.push(item);
-            await user.save();
+        const userID = req.user.id;
+        const item = new Item({
+            name: itemName
+        });
+        if (listName === "Today"){
+            await item.save();
+            const foundList = await List.findOne({ name: "Today", userID: userID });
+            console.log(foundList);
+            console.log(item);
+            foundList.items.push(item);
+            await foundList.save();
             res.redirect("/");
         } else {
-            const foundList = await List.findOne({ name: listName });
+            const foundList = await List.findOne({name: listName, userID: userID});
+            console.log("ds",foundList);
             foundList.items.push(item);
             await foundList.save();
             res.redirect("/" + listName);
@@ -117,25 +101,22 @@ app.post("/", async function (req, res) {
     }
 });
 
-app.post("/delete", async function (req, res) {
+
+app.post("/delete", async function(req, res){
     try {
-        const userId = req.user._id;
         const checkedItemId = req.body.checkbox;
-        const listName = req.body.listName;
+        const listName = req.body.listName; // Make sure to retrieve the listName from the request
+        const userID = req.user.id;
 
         if (listName === "Today") {
-            const user = await User.findById(userId);
-            if (!user) {
-                console.error('User not found');
-                return res.redirect('/auth');
-            }
-            user.list.id(checkedItemId).remove();
-            await user.save();
+            await Item.findByIdAndDelete(checkedItemId);
+            const foundList = await List.findOne({ name: "Today", userID: userID });
+            await List.findOneAndUpdate({ name: "Today", userID: userID }, { items: foundList.items.filter(item => item._id != checkedItemId)});
             console.log("successfully deleted");
             res.redirect("/");
         } else {
             await List.findOneAndUpdate(
-                { name: listName },
+                { name: listName, userID: userID },
                 { $pull: { items: { _id: checkedItemId } } }
             );
             console.log("successfully deleted from custom list");
@@ -146,26 +127,32 @@ app.post("/delete", async function (req, res) {
     }
 });
 
-app.get("/:customListName", async function (req, res) {
+app.get("/:customListName", async function(req, res){
     try {
+        const userID = req.user.id;
         const customListName = _.capitalize(req.params.customListName);
         const foundList = await List.findOne({ name: customListName }).exec();
 
-        if (!foundList) {
+        if (!foundList){
             const list = new List({
                 name: customListName,
-                items: defaultItems
+                items: defaultItems,
+                userID: userID
             });
             await list.save();
             res.redirect("/" + customListName);
         } else {
-            res.render("list", { listTitle: foundList.name, newListItems: foundList.items });
+              res.render("list", {listTitle: foundList.name, newListItems: foundList.items});
         }
     } catch (err) {
         console.log(err);
     }
 });
 
-app.listen(3000, function () {
+
+
+
+
+app.listen(3000, function(){
     console.log("Server is running on port 3000");
 });
